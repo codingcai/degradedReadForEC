@@ -145,6 +145,11 @@ public:
   /** Checks accessibility of repository.
    *  @return 0 if accessible, -1 if inaccessible */
   virtual int check_health(void) = 0;
+
+  /** get the resposity dir
+   * @return the reposity dir
+   */
+  virtual std::string get_repository_path(void)=0;
 };
 
 #endif  /* NCCLOUD_STORAGE_H */

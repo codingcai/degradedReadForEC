@@ -1,8 +1,8 @@
 [Coding]
-k=2
-n=4
+k=5
+n=8
 tmpdir=store/tmp
-type=0
+type=1
 w=8
 
 [Storage]
@@ -21,3 +21,11 @@ type=0
 path=store/node4
 type=0
 
+path=store/node5
+type=0
+
+path=store/node6
+type=0
+
+path=store/node7
+type=0

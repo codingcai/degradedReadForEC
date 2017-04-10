@@ -113,7 +113,10 @@ int RSCode::encode_file(string &dstdir, string &srcdir, string &filename)
   delete[] code_ptrs;
 
   // write chunk size to metadata file
-  string dst = dstdir + '/' + filename;
+  /**
+   *
+   */
+  string dst = dstdir + '/' + filename; //   store/tmp/README
   write_metadata(dst, chunksize);
 
   // write chunks to files
@@ -121,6 +124,7 @@ int RSCode::encode_file(string &dstdir, string &srcdir, string &filename)
   for (int i=0; i<n; ++i) {
     chunk_indices[i] = i;
   }
+  std::cout<<"the write dst is "<<dst<<endl;
   write_chunks(dst, chunksize, chunk_indices, chunks);
   delete[] chunks;
 

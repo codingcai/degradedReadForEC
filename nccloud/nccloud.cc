@@ -148,6 +148,8 @@ int main(int argc, char **argv)
     }
     storages.push_back(Storage::use_storage(atoi(it["type"].c_str())));
     if (storages[storages.size()-1]->init(it) == -1) {
+    	//this init will init the repository_path through config.storages_param
+    	//every differnt storages' element has different repository_path where stores the chunk
       cerr << "[Storage] missing field(s) for repository #" << storages.size()-1 << endl;
       exit(1);
     }

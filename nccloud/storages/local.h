@@ -81,6 +81,7 @@ public:
 
   int list_files(void);
   int check_health(void);
+  std::string get_repository_path(void);
 };
 
 #endif  /* NCCLOUD_STORAGES_LOCAL_H */

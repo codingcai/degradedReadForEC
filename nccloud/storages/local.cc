@@ -83,6 +83,8 @@ int LocalStorage::store_chunk(string &srcdir, string &filename, int chunk_index)
 {
   string src = srcdir + '/' + filename + ".chunk" + to_string(chunk_index);
   string chunk_path = repository_path + filename + ".chunk" + to_string(chunk_index);
+  cout<<"src : "<<src<<endl;
+  cout<<"chunk_path "<<chunk_path<<endl;
   copy(chunk_path, src);
   return 0;
 }
@@ -230,6 +232,11 @@ int LocalStorage::check_health(void)
 {
   struct stat sb;
   return stat(repository_path.c_str(), &sb)==0 && S_ISDIR(sb.st_mode)? 0 : -1;
+}
+
+std::string LocalStorage::get_repository_path()
+{
+	return repository_path;
 }
 
 

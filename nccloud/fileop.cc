@@ -46,7 +46,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <mutex>
 #include <queue>
-
+#include <time.h>
 #include "fileop.h"
 
 using namespace std;
@@ -148,7 +148,8 @@ void Job::run_job(void)
 {
   switch (action) {
     case ULMETACHUNKS:
-      upload_metadata_and_chunks();
+      //upload_metadata_and_chunks();
+      upload_metadata_and_chunks_for_record_time();
       break;
     case ULMETA:
       upload_metadata();
@@ -175,6 +176,7 @@ void Job::run_job(void)
 /*  ------------------------------------  */
 /* | Private methods (the job routines) | */
 /*  ------------------------------------  */
+
 void Job::upload_metadata_and_chunks(void)
 {
   // upload metadata and chunks on a per-node basis
@@ -196,6 +198,47 @@ void Job::upload_metadata_and_chunks(void)
       print_error(s);
       exit(-1);
     }
+  }
+}
+
+/*
+ * Add by CaiYi
+ * 2014/4/10
+ * New method to upload chunks with recording the time
+ */
+
+void Job::upload_metadata_and_chunks_for_record_time(void)
+{
+  // upload metadata and chunks on a per-node basis
+  for (auto nodeid : node_indices) {// in the encode_file, the elements are pushed back
+    vector<int> cur_chunk_indices;
+    for (auto chunk_index : chunk_indices) {
+      if (coding->nodeid(chunk_index) == nodeid) {
+    	  cout<<"chunk index:  "<<chunk_index<<endl; //
+        cur_chunk_indices.push_back(chunk_index);
+      }
+    }
+
+
+    clock_t begin_write_in_node, end_write_in_node;
+    begin_write_in_node = clock();
+    //it's included in the for... So there store in the one node
+    if ((*storages)[nodeid]->
+        store_metadata_and_chunks(tmpdir, filename, cur_chunk_indices) == -1) {
+      stringstream s;
+      s << "Failed to upload " << tmpdir << "/" << filename;
+      for (auto cur_chunk_index : cur_chunk_indices) {
+        s << " [" << cur_chunk_index << "]";
+      }
+      s << " to node " << nodeid << endl;
+      print_error(s);
+      exit(-1);
+    }
+    end_write_in_node = clock();
+    clock_t write_time = end_write_in_node - begin_write_in_node;
+    std::cout<<"the node of "<<(*storages)[nodeid]->get_repository_path()
+    		<<"   .The time is "<<write_time<<endl;//only used by local;
+    cout<<endl;
   }
 }
 
@@ -314,17 +357,28 @@ void FileOp::encode_file(string &path, Coding *coding,
   string srcdir;
   if (sep >= 0) {
     srcdir.assign(path, 0, sep);
-  } else {
-    srcdir.assign(".");
+  } else {//if the dir is current dir, the src is .
+    srcdir.assign(".");  //
   }
+
   string filename(path, sep+1);
+  /*
+   * Add by CaiYi
+   */
+  cout<<"srcdir is "<<srcdir<<endl;
+  cout<<"tmpdir is "<<tmpdir<<endl;
+  cout<<"filename is "<<filename<<endl;
+  /*
+   * Add ends.
+   */
+  //encode_file will encode the file to tmp dir.
   if (coding->encode_file(tmpdir, srcdir, filename) == -1) {
     print_error(stringstream() << "Failed to encode: "
                                << srcdir << "/" << filename << endl);
     exit(-1);
   }
 
-  // enqueue job: store_metadata_and_chunks()
+  // enqueue job: store_metadata_and_chunks()  to every dir(node0 node1 ..)
   Job *job = new Job(Job::ULMETACHUNKS, coding, &storages, tmpdir, filename);
   for (int i=0, j=0; i<coding->getn(); ++i) {
     job->node_indices.push_back(i);
