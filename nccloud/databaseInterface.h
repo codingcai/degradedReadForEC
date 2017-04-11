@@ -11,9 +11,12 @@
 #include <string>
 #include <vector>
 #include <mysql.h>
+#include <thread>
+#include <mutex>
 #define ERROR_QUERY_FAIL -1 // 操作失败
 
 using namespace std;
+//std::mutex m;
 // 定义MySQL连接信息
 typedef struct
 {
@@ -27,6 +30,31 @@ typedef struct
 class MySQLInterface
 {
 public:
+
+	static MySQLInterface *GetInstance()
+	{
+		if(SingleInstance==nullptr)
+		{
+			//m.lock();
+			if(SingleInstance==nullptr)
+			{
+				SingleInstance = new MySQLInterface();
+			}
+			//m.unlock();
+		}
+		return SingleInstance;
+	}
+
+	static void Destory_MySQLInterface()
+	{
+		if(SingleInstance!=NULL)
+		{
+			delete SingleInstance;
+			SingleInstance = nullptr;
+		}
+	}
+
+
     MySQLInterface();
     virtual ~MySQLInterface();
 
@@ -45,7 +73,8 @@ public:
 
 private:
     MySQLConInfo MysqlConInfo;   // 连接信息
-    MYSQL MysqlInstance;         // MySQL对象
+    static MySQLInterface *SingleInstance;         // MySQL对象
+    MYSQL MysqlInstance;
     MYSQL_RES *Result;           // 用于存放结果
 };
 

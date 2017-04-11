@@ -64,16 +64,16 @@ void print_usage(char *prog)
   exit(1);
 }
 
-
+MySQLInterface *MySQLInterface::SingleInstance = nullptr;
 int main(int argc, char **argv)
 {
 
 
-	MySQLInterface MySQLInterface;
-	MySQLInterface.SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
-	if (!MySQLInterface.Open()) {
-		std::cout << MySQLInterface.ErrorNum << " : "
-				<< MySQLInterface.ErrorInfo << std::endl;
+	MySQLInterface *mysql = MySQLInterface::GetInstance();
+	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+	if (!mysql->Open()) {
+		std::cout << mysql->ErrorNum << " : "
+				<< mysql->ErrorInfo << std::endl;
 	}
 	// 读取数据
 
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	std::string sqlstr =
 			"SELECT `nodeName`,`respondeTime`,`accessNumber` FROM `performance`.`nodePerformance`";
 
-	MySQLInterface.Select(sqlstr, data);
+	mysql->Select(sqlstr, data);
 
 	// 显示数据
 
@@ -98,6 +98,7 @@ int main(int argc, char **argv)
 		cout << endl;
 	}
 
+ // MySQLInterface::Destory_MySQLInterface();
 
 
 
