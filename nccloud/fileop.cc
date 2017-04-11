@@ -38,7 +38,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =================================================================== */
 
-
+#include <stdlib.h>
 #include <atomic>
 #include <condition_variable>
 #include <cstring>
@@ -47,6 +47,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <mutex>
 #include <queue>
 #include <time.h>
+#include "databaseInterface.h"
 #include "fileop.h"
 
 using namespace std;
@@ -238,14 +239,60 @@ void Job::upload_metadata_and_chunks_for_record_time(void)
     clock_t write_time = end_write_in_node - begin_write_in_node;
     std::cout<<"the node of "<<(*storages)[nodeid]->get_repository_path()
     		<<"   .The time is "<<write_time<<endl;//only used by local;
-
+    store_write_time((*storages)[nodeid]->get_repository_path(),(long int)write_time);
     cout<<endl;
   }
 }
 
 
-void store_write_time(string node_info, long int write_time)
+void Job::store_write_time(string node_info, long int write_time)
 {
+	MySQLInterface *mysql = MySQLInterface::GetInstance();
+		mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+		if (!mysql->Open()) {
+			std::cout << mysql->ErrorNum << " : "
+					<< mysql->ErrorInfo << std::endl;
+		}
+
+	//select 某一个节点的信息是否已经存在如果不存在则写入，如果存在，则更新
+	vector<vector<string>> select_result;
+	string select_one_node = "SELECT * FROM nodePerformance WHERE nodeName='"+node_info+"'";
+	cout<<select_one_node<<endl;
+	mysql->Select(select_one_node,select_result);
+	if(select_result.empty())
+	{//如果对应某一个节点的信息为空 那么将这个节点信息写入， accessNumber置为1
+		cout<<"the node of "<<node_info<<"  is empty"<<endl;
+		string create_node_info= "INSERT INTO  nodePerformance(nodeName,respondeTime,accessNumber) VALUES('"+
+				node_info+"',"+to_string(write_time)+","+to_string(1)+")";
+		mysql->GetInsertID(create_node_info); //insert the nodeName respondeTime to the table
+	}
+	else
+	{//如果某个节点已经有信息，那么更新这个节点的信息
+		cout<<"the node of "<<node_info<<" isn't empty"<<endl;
+		string string_respondeTime = select_result[0][1]; //select_result[0][1] is respindeTime in the nodePerformance
+		string string_accessTime = select_result[0][2]; //select_result[0][2] is accessTime in the nodePerformance
+		float respondeTime = atof(string_respondeTime.c_str());
+		int accessTime = atof(string_accessTime.c_str());
+		accessTime++; //每次写数据时，对应节点的访问次数加1
+		respondeTime = respondeTime*0.3+write_time*0.7;//每次写数据时，对应节点的访问次数加1
+		//cout<<"string_respondeTime : "<<string_respondeTime<<"  string_accessTime "<<string_accessTime<<endl;
+		cout<<"respondeTime : "<<respondeTime<<"   AccessTime: "<<accessTime<<endl;
+
+		string update_write_info = "UPDATE nodePerformance SET respondeTime="+to_string(respondeTime)+
+									", accessNumber="+to_string(accessTime)+" WHERE nodeName='"+node_info+"'";
+		cout<<update_write_info<<endl;
+		//update the write time and write number
+		bool update = mysql->Query(update_write_info);
+		cout<<"update is  "<<update<<endl;
+	}
+	for(int i=0;i<select_result.size();i++)
+	{
+		for(int j = 0;j<select_result[0].size();j++)
+					cout<<select_result[i][j]<<" ";
+		cout<<endl;
+	}
+
+	//cout<<update_write_time<<endl;
 
 }
 

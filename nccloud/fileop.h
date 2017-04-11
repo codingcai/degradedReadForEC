@@ -67,6 +67,11 @@ class Job
   void repair_file(void);
 
   /*Write and read database */
+  /*
+   * Add by CaiYi
+   * 2017/4/11
+   * 这个方法主要是记录每一个写操作的响应时间，然后更新响应时间以及写次数
+   */
   void store_write_time(std::string node_info, long int write_time);
 
 
