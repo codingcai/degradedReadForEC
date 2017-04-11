@@ -238,8 +238,15 @@ void Job::upload_metadata_and_chunks_for_record_time(void)
     clock_t write_time = end_write_in_node - begin_write_in_node;
     std::cout<<"the node of "<<(*storages)[nodeid]->get_repository_path()
     		<<"   .The time is "<<write_time<<endl;//only used by local;
+
     cout<<endl;
   }
+}
+
+
+void store_write_time(string node_info, long int write_time)
+{
+
 }
 
 

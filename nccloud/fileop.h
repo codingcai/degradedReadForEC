@@ -66,6 +66,10 @@ class Job
   void decode_file(void);
   void repair_file(void);
 
+  /*Write and read database */
+  void store_write_time(std::string node_info, long int write_time);
+
+
 public:
   /** All types of jobs.  Storage jobs < DIVIDER; coding jobs > DIVIDER. */
   enum ACTIONS { ULMETACHUNKS, ULMETA, DLCHUNKS, DLMETA,
