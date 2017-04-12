@@ -72,7 +72,7 @@ class Job
    * 2017/4/11
    * 这个方法主要是记录每一个写操作的响应时间，然后更新响应时间以及写次数
    */
-  void store_write_time(std::string node_info, long int write_time);
+  void store_write_time(int node_id, long int write_time);
 
 
 public:
@@ -136,6 +136,23 @@ public:
    *  @param[in]   tmpdir path to temporary directory */
   void decode_file(std::string &filename, Coding *coding,
                    std::vector<Storage *> &storages, std::string &tmpdir);
+
+/**the decode_file_for_degraded_read could call the get_sorted_node through the responde_time
+ * TODO: we could also have the value according to the different parameters.
+ * TODO: 这个方法会对节点排序，然后程序会去前k个节点
+ * TODO: 这里我们是根据响应时间进行排序，当然我们可以根据不同的权值进行排序
+ *
+ */
+  void get_sorted_node(vector<pair<string,double>> &node_responde_time);
+
+  /** Download and decode a file with considering the write responde time
+   *  @param[in] filename name of file to download
+   *  @param[in]   coding Coding instance describing the coding scheme used
+   *  @param[in] storages Storage instances describing the repositories
+   *  @param[in]   tmpdir path to temporary directory */
+  void decode_file_for_degraded_read(std::string &filename, Coding *coding,
+  		std::vector<Storage *> &storages, std::string &tmpdir);
+
 
 
   /** Repair a file.

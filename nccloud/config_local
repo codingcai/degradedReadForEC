@@ -3,7 +3,7 @@ k=5
 n=8
 tmpdir=store/tmp
 type=1
-w=8
+w=16
 
 [Storage]
 path=store/node0

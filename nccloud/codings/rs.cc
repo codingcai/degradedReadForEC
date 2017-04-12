@@ -325,6 +325,8 @@ int RSCode::chunks_per_node(void) { return 1; }
 
 int RSCode::chunks_on_node(int node, vector<int> &chunk_indices)
 {
+	cout<<"it is the RSCode:  "<<node<< endl;
+	cout<<endl;
   chunk_indices.push_back(node);
   return (node>=0 && node<n)? 0 : -1;
 }

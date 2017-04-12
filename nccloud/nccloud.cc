@@ -167,7 +167,8 @@ int main(int argc, char **argv)
     // decode mode
     for (int i=3; i<argc; ++i) {
       string filename(argv[i]);
-      FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
+      //FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
+      FileOp::instance()->decode_file_for_degraded_read(filename, coding, storages, tmpdir);
     }
   } else if (mode == 2) {
     // repair mode
