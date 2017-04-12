@@ -124,7 +124,7 @@ int RSCode::encode_file(string &dstdir, string &srcdir, string &filename)
   for (int i=0; i<n; ++i) {
     chunk_indices[i] = i;
   }
-  std::cout<<"the write dst is "<<dst<<endl;
+ // std::cout<<"the write dst is "<<dst<<endl;
   write_chunks(dst, chunksize, chunk_indices, chunks);
   delete[] chunks;
 
@@ -325,8 +325,8 @@ int RSCode::chunks_per_node(void) { return 1; }
 
 int RSCode::chunks_on_node(int node, vector<int> &chunk_indices)
 {
-	cout<<"it is the RSCode:  "<<node<< endl;
-	cout<<endl;
+	//cout<<"it is the RSCode:  "<<node<< endl;
+	//cout<<endl;
   chunk_indices.push_back(node);
   return (node>=0 && node<n)? 0 : -1;
 }

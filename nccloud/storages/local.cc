@@ -83,8 +83,8 @@ int LocalStorage::store_chunk(string &srcdir, string &filename, int chunk_index)
 {
   string src = srcdir + '/' + filename + ".chunk" + to_string(chunk_index);
   string chunk_path = repository_path + filename + ".chunk" + to_string(chunk_index);
-  cout<<"src : "<<src<<endl;
-  cout<<"chunk_path "<<chunk_path<<endl;
+  //cout<<"src : "<<src<<endl;
+  //cout<<"chunk_path "<<chunk_path<<endl;
   copy(chunk_path, src);
   return 0;
 }
@@ -125,7 +125,7 @@ int LocalStorage::get_chunk(string &dstdir, string &filename, int chunk_index)
 {
   string dst = dstdir + '/' + filename + ".chunk" + to_string(chunk_index);
   string chunk_path = repository_path + filename + ".chunk" + to_string(chunk_index);
-  cout<<"there is getting chunk"<<endl;
+  //cout<<"there is getting chunk"<<endl;
   cout<<dst<<"   "<<chunk_path<<endl;
   copy(dst, chunk_path);
   return 0;

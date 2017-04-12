@@ -45,6 +45,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <thread>
 #include <vector>
+#include <utility>
 
 #include "coding.h"
 #include "common.h"
@@ -144,7 +145,7 @@ public:
  * TODO: 这里我们是根据响应时间进行排序，当然我们可以根据不同的权值进行排序
  *
  */
-  void get_sorted_node(vector<pair<string,double>> &node_responde_time);
+  void get_sorted_node(std::vector<std::pair<std::string,double>> &node_responde_time);
 
   /** Download and decode a file with considering the write responde time
    *  @param[in] filename name of file to download
