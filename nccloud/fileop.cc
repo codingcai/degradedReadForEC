@@ -149,7 +149,8 @@ void Job::run_job(void) {
 		upload_metadata();
 		break;
 	case DLCHUNKS:
-		download_chunks();
+		//download_chunks();
+		download_chunks_for_record_time();
 		break;
 	case DLMETA:
 		download_metadata();
@@ -330,6 +331,48 @@ void Job::download_chunks(void) {
 		}
 	}
 }
+
+
+void Job::download_chunks_for_record_time(void)
+{
+	// download chunks on a per-node basis and record the time
+	/*
+	 *just for test
+	 */
+	for (auto i : node_indices) {
+		cout<<"**********************DOWNLOAD CHUNKS*****************"<<endl;
+		cout << "node indix:  " << i << endl;
+		cout << endl;
+	}
+
+
+	for (auto nodeid : node_indices) {
+		clock_t begin_read_in_node, end_read_in_node;
+		begin_read_in_node = clock();
+		vector<int> cur_chunk_indices;
+		for (auto chunk_index : chunk_indices) {
+			if (coding->nodeid(chunk_index) == nodeid) {
+				cur_chunk_indices.push_back(chunk_index);
+			}
+		}
+		if ((*storages)[nodeid]->get_chunks(tmpdir, filename, cur_chunk_indices)
+				== -1) {
+			stringstream s;
+			s << "Failed to download " << filename;
+			for (auto cur_chunk_index : cur_chunk_indices) {
+				s << " [" << cur_chunk_index << "]";
+			}
+			s << " from node " << nodeid << endl;
+			print_error(s);
+			exit(-1);
+		}
+		end_read_in_node = clock();
+		clock_t read_time = end_read_in_node - begin_read_in_node;
+		store_write_time(nodeid,read_time);
+	}
+
+}
+
 
 void Job::download_metadata(void) {
 	// download metadata from the first node

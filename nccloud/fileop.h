@@ -60,6 +60,7 @@ class Job
   void upload_metadata_and_chunks_for_record_time(void);
   void upload_metadata(void);
   void download_chunks(void);
+  void download_chunks_for_record_time(void);
   void download_metadata(void);
 
   /* Coding job routines. */
