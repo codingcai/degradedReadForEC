@@ -1,7 +1,0 @@
-storages/local.cc storages/swift.cc
-OBJS=$(SRCS:.cc=.o)
-
-LS_SRCS=list_repo.cc config.cc storage.cc storages/local.cc storages/swift.cc
-LS_OBJS=$(LS_SRCS:.cc=.o)
-
-all: libfmsr jerasure 
