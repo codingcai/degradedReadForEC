@@ -1,0 +1,104 @@
+"config.old".  This is a backup of your original
+  config file (with the faulty node).  Your config_file "config" will be updated
+  to reflect the new working parameters.
+
+
+4.7 Deleting a file [DEL]
+-------------------------
+
+  usage: bin/nccloud config_file delete filename_1 ... filename_n
+
+  Metadata and chunks for each of the file will be removed from all nodes.
+
+
+4.8 Listing repositories [LST]
+------------------------------
+
+  usage: bin/list_repo config_file
+
+  All files on all nodes will be printed (even those that has nothing to do with
+  NCCloud).
+
+
++----------------------+
+| 5. Limitations [LIM] |
++----------------------+
+
+  Other than the platform recommendations in Section 2 of this readme and also
+  the limitations inherent in all its prerequisites, we list some other known
+  limitations of NCCloud here.
+  - The backup hierarchy is flat (i.e., we look only at filenames), so you
+    should not include files like "Makefile" and "test/Makefile" together.
+  - Only single-node repairs are supported.
+  - Each operation uses the same coding schemes and parameters for all files.
+    To operate on files coded differently you have to invoke NCCloud multiple
+    times.
+  - We store everything in the memory, so be careful not to encode files that
+    are too large.
+
+  This is only a proof-of-concept prototype written as an exercise and released
+  for academic purpose.  Stress test at your own risk!
+
+
++----------------------------+
+| 6. Extending NCCloud [EXT] |
++----------------------------+
+
+6.1 Overview [OVR]
+------------------
+
+  The structure of NCCloud is roughly as follows.
+
+    User invokes bin/nccloud
+               ||
+               \/
+          ------------   parses config file   -----------
+         |            | <==================> | config.cc |
+         |            |                       -----------
+         |            |
+         |            |  instantiates objects for
+         | nccloud.cc |  the coding scheme and        -----------
+         |            |  storage backends specified  | coding.cc |
+         |            | <==========================>  ------------
+         |            |                              | storage.cc |
+         |            |                               ------------
+          ------------
+               || invokes file operations
+               || requested by the user
+               \/
+          ------------   calls the appropriate
+         |            |  encode/decode functions     ----------------
+         |            | <=========================> | codings/???.cc |
+         |            |                              ----------------
+         | fileop.cc  |
+         |            |  calls the appropriate
+         |            |  upload/download functions   -----------------
+         |            | <=========================> | storages/???.cc |
+          ------------                               -----------------
+
+
+  The file operations are carried out in a simple pipelined manner.  There is a
+  master coding thread for carrying out coding operations (e.g., encode/decode)
+  and a master storage thread for carryng out file transfers to and from the
+  repositories.  The intention of this is to allow coding operations to run
+  during lengthy file transfers (I/O bound). For example, during file encode and
+  upload (ideally):
+
+                        |E1|E2|E3|
+    With pipelining:    --------------------------------------> time
+                           |   T1   |   T2   |   T3   |
+
+
+                        |E1|   T1   |E2|   T2   |E3|   T3   |
+    Without pipelining: --------------------------------------> time
+
+       E1, E2, E3:  Encoding files 1, 2 and 3 respectively
+       T1, T2, T3:  Uploading files 1, 2 and 3 respectively
+
+  This could improve performance when transferring files over a slow network,
+  but has minimal impact when using local storage as storage backends.  The
+  pipelining model could be further extended in the future (e.g., spawning
+  multiple storage threads to speed up file transfer).
+
+
+  In the remaining parts of this readme, we will

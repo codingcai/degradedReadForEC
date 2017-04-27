@@ -1,0 +1,5 @@
+ql -lJerasure -lpthread -lmysqlclient
+
+SRCS=nccloud.cc config.cc fileop.cc coding.cc storage.cc  databaseInterface.cc\
+     codings/fmsr.cc codings/replication.cc codings/rs.cc \
+     

@@ -24,7 +24,7 @@ ErrorNum(0), ErrorInfo("ok")
 MySQLInterface::~MySQLInterface()
 {
 	//in the deconstructor , we close the mysql instance.
-	 mysql_close(&MysqlInstance);
+
 }
 
 // 设置连接信息
@@ -55,7 +55,7 @@ bool MySQLInterface::Open()
 // 断开连接
 void MySQLInterface::Close()
 {
-
+    mysql_close(&MysqlInstance);
 }
 
 //读取数据

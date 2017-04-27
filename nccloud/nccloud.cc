@@ -68,7 +68,8 @@ int main(int argc, char **argv) {
 	/*
 	 * 这里执行mysql->open后 配置好后 后面可以一直用
 	 */
-	MySQLInterface *mysql = MySQLInterface::GetInstance();
+	//MySQLInterface *mysql = MySQLInterface::GetInstance();
+    MySQLInterface *mysql = new MySQLInterface();
 	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
 	if (!mysql->Open()) {
 		std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
 			"SELECT `nodeName`,`respondeTime`,`accessNumber` FROM `performance`.`nodePerformance`";
 
 	mysql->Select(sqlstr, data);
+    mysql->Close();
 
 	// 显示数据
 

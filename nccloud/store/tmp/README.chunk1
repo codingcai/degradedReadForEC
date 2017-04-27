@@ -1,0 +1,86 @@
+ile delete filename_1 ... filename_n
+
+  In addition, there is a separate program for listing repositories
+  (bin/list_repo) that can be invoked as follows.
+    bin/list_repo config_file
+
+
+4.1 Example [EXP]
+-----------------
+
+  We give an example run-through here.  In this example, we try to backup this
+  readme (README) and a config file (template/config_local) using the local
+  directories store/node0 to store/node4 as our storage repositories.  We also
+  need a temporary staging directory store/tmp.  We use (4,2)-FMSR code to
+  encode our files.  Details on each of the steps can be found in later parts of
+  this readme.
+
+  1. Build NCCloud according to Section 3.  If successful, you should have two
+     binaries: bin/nccloud and bin/list_repo.
+
+  2. Create your own config file.  You can use template/config_local for now.
+     Copy the config file to 'config':  cp template/config_local config
+
+  3. Setup your temporary directory and storage repositories.  If you are using
+     template/config_local, then you should have full access to the temporary
+     directory store/tmp and the storage repositories store/node0 to
+     store/node4.  If these directories do not exist, create them.  If you
+     cannot access any of these directories for any reason, use another
+     directory and edit config to reflect the change.
+
+  4. Upload files.  You can try uploading this readme and the config template by
+     using the command:
+       bin/nccloud config encode README template/config_local
+     Your files will be uploaded as README and config_local (flat hierarchy).
+
+  5. Download files.  You can download the uploaded files by:
+       bin/nccloud config decode README config_local
+     The files should then be downloaded to your temporary directory
+     (store/tmp).
+
+  6. Repair files.  We can repair files on node 0 by:
+       bin/nccloud config repair 0 README config_local
+     After the repair, our original config will be backed up as config.old, and
+     config will be updated with the new configuration.  If the repair is
+     successful, you will see that node 0 has been replaced by "store/node4",
+     the spare node in our original config.
+
+  7. List the repositories.  To see what files you have on your repositories,
+     you can feed bin/list_repo your current config:
+       bin/list_repo config
+     You should see chunks and metadata of README and config_local on each of
+     the repositories.
+
+
+4.2 Config file format [CFG]
+----------------------------
+
+  Two example config files are included under template/.
+  template/config_local uses only local storage is used in the above example.
+  template/config shows how we can use OpenStack Swift containers as well.
+
+  A config file is divided into two sections, marked by [Coding] and [Storage].
+  Under each section, there is a list of field=value pairs (no spaces in
+  between).
+
+  The Coding section requires the following fields:
+    k        # the number of nodes required for data reconstruction
+    n        # the total number of nodes storing chunks (excluding spare nodes)
+    w        # Galois field width (use w=8 for GF(2^8))
+    type     # type of coding scheme used: type=0 for FMSR code
+             #                             type=1 for Reed-Solomon code
+             #                             type=2 for replication
+             # Types are specified in Coding::use_coding() in coding.cc.
+    tmpdir   # a staging directory where intermediate files are stored
+               (i.e., this is where 1) encoded chunks and metadata,
+                                    2) retrieved chunks and metadata, and
+                                    3) restored files will go)
+
+
+  The Storage section requires only the type field:
+    type     # type of storage repository: type=0 for local filesystem
+             #                             type=1 for OpenStack Swift
+             # Types are specified in Storage::use_storage() in storage.cc.
+
+  Each type of storage repository requires its own specific parameters. For
+  example, when using a local filesystem as a storage repositor

@@ -241,8 +241,12 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
  */
 
 void Job::store_write_time(int node_id, long int write_time) {
-	MySQLInterface *mysql = MySQLInterface::GetInstance();
-
+	//MySQLInterface *mysql = MySQLInterface::GetInstance();
+	MySQLInterface *mysql = new MySQLInterface();
+	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+	if (!mysql->Open()) {
+        std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+    }
 	/*
 	 * 这里不需要打开是因为主函数中已经打开
 	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
@@ -290,6 +294,7 @@ void Job::store_write_time(int node_id, long int write_time) {
 			cout << select_result[i][j] << " ";
 		cout << endl;
 	}
+    mysql->Close();
 }
 
 void Job::upload_metadata(void) {
@@ -541,12 +546,17 @@ void FileOp::decode_file(string &filename, Coding *coding,
  */
 void FileOp::get_sorted_node(vector<pair<string,double>>& node_responde_time)
 {
-	MySQLInterface *mysql = MySQLInterface::GetInstance();
+	//MySQLInterface *mysql = MySQLInterface::GetInstance();
+	MySQLInterface *mysql = new MySQLInterface();
+	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+	if (!mysql->Open()) {
+		std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+	}
 		std::vector<std::vector<std::string>> data;
 		std::string sqlstr =
 				"SELECT `nodeName`,`respondeTime`,`accessNumber` FROM `performance`.`nodePerformance`";
 	    mysql->Select(sqlstr, data);
-
+    mysql->Close();
 	    auto cmp =[](std::pair<string,double> const&a,std::pair<string,double> const&b)
 			{
 	    		return a.second!=b.second? a.second<b.second:a.first<b.first;

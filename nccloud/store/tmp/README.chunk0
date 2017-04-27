@@ -1,0 +1,114 @@
+
+
+  - NCCLOUD README -
+
+
++-------------------+
+| Table of contents |
++-------------------+
+
+  1. What is this ............. [WAT]
+  2. Supported platforms ...... [SUP]
+  3. How to install ........... [INS]
+  4. How to use ............... [USE]
+     4.1 Example .............. [EXP]
+     4.2 Config file format ... [CFG]
+     4.3 Backup file format ... [BAK]
+     4.4 Uploading a file ..... [UPL]
+     4.5 Downloading a file ... [DNL]
+     4.6 Repairing a file ..... [RPR]
+     4.7 Deleting a file ...... [DEL]
+     4.8 Listing repositories . [LST]
+  5. Limitations .............. [LIM]
+  6. Extending NCCloud ........ [EXT]
+     6.1 Overview ............. [OVR]
+     6.2 Coding modules ....... [COD]
+         6.2.1 Replication .... [REP]
+         6.2.2 Reed-Solomon ... [RSC]
+         6.2.3 FMSR ........... [FMS]
+     6.3 Storage modules ...... [STR]
+         6.3.1 Local disk ..... [LOC]
+         6.3.2 Swift .......... [SWI]
+
+
++-----------------------+
+| 1. What is this [WAT] |
++-----------------------+
+
+  NCCloud is a proof-of-concept storage application written in C++, which can be
+  used to backup, restore and repair data on various storage backends.  It aims
+  to be extensible, allowing the support of various coding schemes and storage
+  backends.  It now supports three coding schemes:
+    1. Replication
+    2. Reed-Solomon codes using Jerasure
+    3. Functional minimum-storage regenerating (FMSR) codes using libfmsr
+  It also supports two storage backends:
+    1. Local storage
+    2. OpenStack Swift
+
+  NCCloud is previously implemented in Python and FUSE.  Its previous
+  implementation is described in the following paper:
+    Yuchong Hu, Henry C. H. Chen, Patrick P. C. Lee, and Yang Tang.
+    NCCloud: Applying Network Coding for the Storage Repair in a
+    Cloud-of-Clouds.  USENIX FAST '12.
+
+  More information can be found on the project homepage at:
+  http://ansrlab.cse.cuhk.edu.hk/software/nccloud/
+
+
++------------------------------+
+| 2. Supported platforms [SUP] |
++------------------------------+
+
+  NCCloud is built with the following environment in mind:
+  - Common Linux (e.g., Ubuntu) on small-endian hardware
+  - GCC 4.6+
+  - GNU make
+  - Doxygen (if you plan to build the documentations)
+
+  It might still run on other platforms, but you may need to hack around a bit.
+
+
++-------------------------+
+| 3. How to install [INS] |
++-------------------------+
+
+  There are several prerequisites:
+  - libfmsr (should be bundled with NCCloud and can be found in ../libfmsr/)
+  - Jerasure (should be bundled with NCCloud and can be found in ../Jerasure/)
+  - OpenStack Swift and its CLI (only if you plan to use Swift)
+
+  To build NCCloud, you should use the following commands:
+  - make
+  - make docs (optional)
+
+  "make" first builds the bundled libfmsr and Jerasure.  The libfmsr header and
+  shared library can then be found under ../libfmsr/include/ and ../libfmsr/lib/
+  respectively, while those for Jerasure can be found under ../Jerasure/include/
+  and ../Jerasure/lib/.
+
+  After building libfmsr and Jerasure, NCCloud is built to give two
+  binaries: bin/nccloud and bin/list_repo.  bin/nccloud is the main NCCloud
+  program and bin/list_repo is a program for listing all the files on your
+  storage repositories.  If you have not done so, copy the libfmsr and Jerasure
+  shared libraries to your library path.
+
+  "make docs" uses Doxygen to build the documentations for the NCCloud codes.
+  The documentations can be found under docs/.
+
+
+  Future versions may make use of "autohell", but we stick to hand-crafted
+  Makefiles for now.
+
+
++---------------------+
+| 4. How to use [USE] |
++---------------------+
+
+  NCCloud (bin/nccloud) supports four operations: encode, decode, repair and
+  delete.  They can be invoked as follows (substitute config_file, path_to_file,
+  filename and failed_node_index accordingly).
+    bin/nccloud config_file encode path_to_file_1 ... path_to_file_n
+    bin/nccloud config_file decode filename_1 ... filename_n
+    bin/nccloud config_file repair failed_node_index filename_1 ... filename_n
+    bin/nccloud config_f
