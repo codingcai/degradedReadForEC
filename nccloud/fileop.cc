@@ -104,6 +104,7 @@ static int wait_job(Job* &job, queue<Job *> &q, mutex &m,
 /** Run thread indefinitely, wait for jobs to process
  *  and quit when there will be no more jobs */
 static void run_thread(queue<Job *> &q, mutex &m, condition_variable &cv) {
+    int begin = clock();
 	m.lock();
 	num_working_threads++;
 	m.unlock();
@@ -112,6 +113,8 @@ static void run_thread(queue<Job *> &q, mutex &m, condition_variable &cv) {
 		job->run_job();
 		delete job;
 	}
+    int end = clock();
+    cout<<"run_threak time   "<<end-begin<<endl;
 }
 
 /*  ---------------------------------  */
@@ -210,9 +213,12 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
 				cur_chunk_indices.push_back(chunk_index);
 			}
 		}
-
+        /*
+         * 这里暂时不记录写的时间  但是因为要在数据库中增加某个节点的信息 因此记录为0
+         */
 		clock_t begin_write_in_node, end_write_in_node;
-		begin_write_in_node = clock();
+        //begin_write_in_node = clock();
+        begin_write_in_node = 0;
 		//it's included in the for... So there store in the one node
 		if ((*storages)[nodeid]->store_metadata_and_chunks(tmpdir, filename,
 				cur_chunk_indices) == -1) {
@@ -225,7 +231,8 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
 			print_error(s);
 			exit(-1);
 		}
-		end_write_in_node = clock();
+		//end_write_in_node = clock();
+        end_write_in_node = 0;
 		clock_t write_time = end_write_in_node - begin_write_in_node;
 		std::cout << "the node of "
 				<< (*storages)[nodeid]->get_repository_path()
@@ -240,7 +247,7 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
  * @param write_time: each write responde time
  */
 
-void Job::store_write_time(int node_id, long int write_time) {
+void Job::store_write_time(int node_id, long int write_time) {  //读写时间都在这里记录
 	//MySQLInterface *mysql = MySQLInterface::GetInstance();
 	MySQLInterface *mysql = new MySQLInterface();
 	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
@@ -269,13 +276,14 @@ void Job::store_write_time(int node_id, long int write_time) {
 						+ "," + to_string(1) + ")";
 		mysql->GetInsertID(create_node_info); //insert the nodeName respondeTime to the table
 	} else { //如果某个节点已经有信息，那么更新这个节点的信息
-		//cout << "the node of " << node_id << " isn't empty" << endl;
+		double lastRatio = 0.1;
+        double nowRatio = 0.9;
 		string string_respondeTime = select_result[0][1]; //select_result[0][1] is respindeTime in the nodePerformance
 		string string_accessTime = select_result[0][2]; //select_result[0][2] is accessTime in the nodePerformance
 		float respondeTime = atof(string_respondeTime.c_str());
 		int accessTime = atof(string_accessTime.c_str());
 		accessTime++; //每次写数据时，对应节点的访问次数加1
-		respondeTime = respondeTime * 0.3 + write_time * 0.7; //每次写数据时，对应节点的访问次数加1
+		respondeTime = respondeTime * lastRatio + write_time * nowRatio; //每次写数据时，对应节点的访问次数加1
 		//cout<<"string_respondeTime : "<<string_respondeTime<<"  string_accessTime "<<string_accessTime<<endl;
 		//cout << "respondeTime : " << respondeTime << "   AccessTime: "
 		//		<< accessTime << endl;
@@ -598,8 +606,9 @@ void FileOp::decode_file_for_degraded_read(string &filename, Coding *coding,
 	 */
 	if(coding->getk()<=node_responde_time.size())
 	{
+
 		int n = coding->getn();
-		for(int i=0;i<n;i++)
+		for(int i=0;i<node_responde_time.size();i++)
 		{
 			string string_nodeIndex = node_responde_time[i].first;
 			int nodeIndex = atoi(string_nodeIndex.c_str());

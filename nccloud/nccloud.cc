@@ -69,6 +69,7 @@ int main(int argc, char **argv) {
 	 * 这里执行mysql->open后 配置好后 后面可以一直用
 	 */
 	//MySQLInterface *mysql = MySQLInterface::GetInstance();
+    /*
     MySQLInterface *mysql = new MySQLInterface();
 	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
 	if (!mysql->Open()) {
@@ -97,7 +98,7 @@ int main(int argc, char **argv) {
 		}
 		cout << endl;
 	}
-
+  */
 	// MySQLInterface::Destory_MySQLInterface();
 
 	clock_t begin, end;
@@ -174,10 +175,24 @@ int main(int argc, char **argv) {
 
 
 		for (int i = 3; i < argc; ++i) {
-			string filename(argv[i]);
-			//FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
-			FileOp::instance()->decode_file_for_degraded_read(filename, coding,
-					storages, tmpdir);
+            if(strcmp(argv[argc-1],"DEGRADED")) //如果不相等
+            {
+                string filename(argv[i]);
+                cout<<"no degraded"<<endl;
+                FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
+            }
+            else
+            {
+                if(i<argc-1)
+                {
+                    cout<<"degraded"<<endl;
+                    string filename(argv[i]);
+                    FileOp::instance()->decode_file_for_degraded_read(filename, coding,
+                                                                      storages, tmpdir);
+                }
+
+            }
+
 		}
 	} else if (mode == 2) {
 		// repair mode
@@ -252,7 +267,7 @@ int main(int argc, char **argv) {
 	FileOp::instance()->wait();
 	//end1 = clock();
 	end = clock();
-	cout<<"degraded time : "<<end-begin<<endl;
+	cout<<"Total time : "<<end-begin<<endl;
 	//cout<<"normal time : "<<begin-end<<endl;
 	return 0;
 }
