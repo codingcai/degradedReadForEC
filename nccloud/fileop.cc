@@ -108,8 +108,10 @@ static void run_thread(queue<Job *> &q, mutex &m, condition_variable &cv) {
 	m.lock();
 	num_working_threads++;
 	m.unlock();
+
 	Job *job = NULL;
 	while (wait_job(job, q, m, cv)) {
+		//如果队列有任务继续完成
 		job->run_job();
 		delete job;
 	}
@@ -429,6 +431,10 @@ void Job::repair_file(void) {
 /* | Public methods | */
 /*  ----------------  */
 FileOp *FileOp::instance(void) {
+    /*
+     * 这里的instance只调用一次因此可以这样使用
+     * 但是注意：绝不用返回一个指针或引用只想一个local static对象而有可能同时需要多个这样的对象。
+     */
 	static FileOp _instance;
 	return &_instance;
 }
@@ -763,6 +769,10 @@ void FileOp::delete_file(string &filename, Coding *coding,
 FileOp::FileOp() {
 	// spawn one master storage thread and one master coding thread
 	// TODO: consider spawning sub-threads within each of the master thread in the future
+	/*
+	 * 注意这个master_mutex是全局锁
+	 * 在workers中添加两个线程 分别 存取操作和解码操作
+	 */
 	workers.push_back(
 			thread(run_thread, ref(storage_queue), ref(master_mutex),
 					ref(storage_queue_ready)));
