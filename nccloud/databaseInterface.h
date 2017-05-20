@@ -63,6 +63,7 @@ public:
     void Close(); // 关闭连接
 
     bool Select(const std::string& Querystr, std::vector<std::vector<std::string> >& data);      // 读取数据
+    bool Update(const std::string& Updatestr); //更新数据
     bool Query(const std::string& Querystr);     // 其他操作
     int GetInsertID(const std::string& Querystr);// 插入并获取插入的ID,针对自动递增ID
     void ErrorIntoMySQL();       // 错误消息

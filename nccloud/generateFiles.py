@@ -153,7 +153,7 @@ def traversalDirAndDeleteFiles(dirName): #递归删除指定路径下的所有�
         for f in os.listdir(dirName):
             if not f.startswith('.'):
                 filePath = os.path.join(dirName,f) #拼接成完整路径名称
-                print(filePath)
+                #print(filePath)
                 if os.path.isfile(filePath):
 
                     os.remove(filePath)  #如果是文件 删除文件
@@ -181,7 +181,7 @@ def executeEnDecodeDelete(fileFlag,fileNumber,fileSize):
 #可以输入 1个参数  python generateFiles.py DELETE_ALL  删除所有测试文件
 #可以输入 3个参数  python generateFiles.py 0 5 4k 在模式0下 产生5个4k文件
 #可以输入 4个参数  python generateFiles.py 0 encode 5 4k   指的是在模式0下 产生5个4k文件 然后进行编码操作  模式0可换为模式1
-
+#可以输入 5个参数  python generateFiles.py 0 EXECUTE_ALL 5 4k  在模式0（dd）下，产生5个4k文件 进行编码 然后解码 最后删除
 if __name__ == '__main__':
 
     fileNumber = 5
@@ -235,5 +235,7 @@ if __name__ == '__main__':
         if(fileNumber<=200):
             executeEnDecodeDelete(fileFlag,fileNumber,fileSize)
             
+
+
 
         

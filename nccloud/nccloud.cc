@@ -46,7 +46,7 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <time.h>
+#include <sys/time.h>
 
 #include "coding.h"
 #include "common.h"
@@ -101,8 +101,11 @@ int main(int argc, char **argv) {
   */
 	// MySQLInterface::Destory_MySQLInterface();
 
-	clock_t begin, end;
-	begin = clock();
+	struct timeval start;
+    struct timeval end;
+    double timer;
+    gettimeofday(&start,NULL);
+
 	if (argc < 4) {
 		print_usage(argv[0]);
 	}
@@ -179,7 +182,9 @@ int main(int argc, char **argv) {
             {
                 string filename(argv[i]);
                 cout<<"no degraded"<<endl;
-                FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
+                FileOp::instance()->decode_file_for_degraded_read(filename, coding,
+                                                                  storages, tmpdir);
+               // FileOp::instance()->decode_file(filename, coding, storages, tmpdir);
             }
             else
             {
@@ -265,9 +270,11 @@ int main(int argc, char **argv) {
 	}
 
 	FileOp::instance()->wait();
-	//end1 = clock();
-	end = clock();
-	cout<<"Total time : "<<end-begin<<endl;
+
+	gettimeofday(&end,NULL);
+    timer = end.tv_sec-start.tv_sec+(end.tv_usec-start.tv_usec)/1000000.0;
+
+	cout<<"Total time : "<<timer<<endl;
 	//cout<<"normal time : "<<begin-end<<endl;
 	return 0;
 }

@@ -46,7 +46,7 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
-#include <time.h>
+#include <sys/time.h>
 #include <map>
 #include <utility>
 #include <vector>
@@ -104,7 +104,8 @@ static int wait_job(Job* &job, queue<Job *> &q, mutex &m,
 /** Run thread indefinitely, wait for jobs to process
  *  and quit when there will be no more jobs */
 static void run_thread(queue<Job *> &q, mutex &m, condition_variable &cv) {
-    int begin = clock();
+
+
 	m.lock();
 	num_working_threads++;
 	m.unlock();
@@ -115,8 +116,7 @@ static void run_thread(queue<Job *> &q, mutex &m, condition_variable &cv) {
 		job->run_job();
 		delete job;
 	}
-    int end = clock();
-    cout<<"run_threak time   "<<end-begin<<endl;
+
 }
 
 /*  ---------------------------------  */
@@ -207,7 +207,13 @@ void Job::upload_metadata_and_chunks(void) {
 
 void Job::upload_metadata_and_chunks_for_record_time(void) {
 	// upload metadata and chunks on a per-node basis
+	struct timeval start_file;
+	struct timeval end_file;
+	gettimeofday(&start_file,NULL);
 	for (auto nodeid : node_indices) { // in the encode_file, the elements are pushed back
+		struct timeval start;
+		struct timeval end;
+		gettimeofday(&start,NULL);
 		vector<int> cur_chunk_indices;
 		for (auto chunk_index : chunk_indices) {
 			if (coding->nodeid(chunk_index) == nodeid) {
@@ -218,9 +224,7 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
         /*
          * 这里暂时不记录写的时间  但是因为要在数据库中增加某个节点的信息 因此记录为0
          */
-		clock_t begin_write_in_node, end_write_in_node;
-        //begin_write_in_node = clock();
-        begin_write_in_node = 0;
+
 		//it's included in the for... So there store in the one node
 		if ((*storages)[nodeid]->store_metadata_and_chunks(tmpdir, filename,
 				cur_chunk_indices) == -1) {
@@ -233,71 +237,47 @@ void Job::upload_metadata_and_chunks_for_record_time(void) {
 			print_error(s);
 			exit(-1);
 		}
-		//end_write_in_node = clock();
-        end_write_in_node = 0;
-		clock_t write_time = end_write_in_node - begin_write_in_node;
+		gettimeofday(&end,NULL);
+
+		double write_time  = end.tv_sec-start.tv_sec+(end.tv_usec-start.tv_usec)/1000000.0;;
 		std::cout << "the node of "
 				<< (*storages)[nodeid]->get_repository_path()
 				<< "   .The time is " << write_time << endl; //only used by local;
 		//we could get the path : (*storages)[nodeid]->get_repository_path()
-		store_write_time(nodeid, (long int) write_time);
+		store_write_time(nodeid,  write_time);
 		cout << endl;
 	}
+	gettimeofday(&end_file,NULL);
+    //这个是一个文件的写时间
+	double timer = end_file.tv_sec-start_file.tv_sec+(end_file.tv_usec-start_file.tv_usec)/1000000.0;
+	cout<<"upload on file's  time is   "<<timer<<" s"<<endl;
 }
 /*
  * @param node_id : the node index:0 1 2...
  * @param write_time: each write responde time
  */
 
-void Job::store_write_time(int node_id, long int write_time) {  //读写时间都在这里记录
+void Job::store_write_time(int node_id, double write_time) {  //写数据时 初始化数据库
 	//MySQLInterface *mysql = MySQLInterface::GetInstance();
+	write_time = 0 ; //将写时间暂时设置为0
 	MySQLInterface *mysql = new MySQLInterface();
 	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
 	if (!mysql->Open()) {
         std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
     }
-	/*
-	 * 这里不需要打开是因为主函数中已经打开
-	mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
-	if (!mysql->Open()) {
-		std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
-	}
-*/
-	//select 某一个节点的信息是否已经存在如果不存在则写入，如果存在，则更新
 
 	vector<vector<string>> select_result;
 	string select_one_node = "SELECT * FROM nodePerformance WHERE nodeName='"
 			+ to_string(node_id) + "'";
 	//cout << select_one_node << endl;
 	mysql->Select(select_one_node, select_result);
-	if (select_result.empty()) {   //如果对应某一个节点的信息为空 那么将这个节点信息写入， accessNumber置为1
+	if (select_result.empty()) {   //如果对应某一个节点的信息为空 那么将这个节点信息写入， accessNumber置为0
 		cout << "the node of " << to_string(node_id) << "  is empty" << endl;
 		string create_node_info =
 				"INSERT INTO  nodePerformance(nodeName,respondeTime,accessNumber) VALUES('"
 						+ to_string(node_id) + "'," + to_string(write_time)
-						+ "," + to_string(1) + ")";
+						+ "," + to_string(0) + ")";
 		mysql->GetInsertID(create_node_info); //insert the nodeName respondeTime to the table
-	} else { //如果某个节点已经有信息，那么更新这个节点的信息
-		double lastRatio = 0.1;
-        double nowRatio = 0.9;
-		string string_respondeTime = select_result[0][1]; //select_result[0][1] is respindeTime in the nodePerformance
-		string string_accessTime = select_result[0][2]; //select_result[0][2] is accessTime in the nodePerformance
-		float respondeTime = atof(string_respondeTime.c_str());
-		int accessTime = atof(string_accessTime.c_str());
-		accessTime++; //每次写数据时，对应节点的访问次数加1
-		respondeTime = respondeTime * lastRatio + write_time * nowRatio; //每次写数据时，对应节点的访问次数加1
-		//cout<<"string_respondeTime : "<<string_respondeTime<<"  string_accessTime "<<string_accessTime<<endl;
-		//cout << "respondeTime : " << respondeTime << "   AccessTime: "
-		//		<< accessTime << endl;
-
-		string update_write_info = "UPDATE nodePerformance SET respondeTime="
-				+ to_string(respondeTime) + ", accessNumber="
-				+ to_string(accessTime) + " WHERE nodeName='"
-				+ to_string(node_id) + "'";
-		//cout << update_write_info << endl;
-		//update the write time and write number
-		bool update = mysql->Query(update_write_info);
-		//cout << "update is  " << update << endl;
 	}
 	for (int i = 0; i < select_result.size(); i++) {
 		for (int j = 0; j < select_result[0].size(); j++)
@@ -306,6 +286,77 @@ void Job::store_write_time(int node_id, long int write_time) {  //读写时间�
 	}
     mysql->Close();
 }
+
+#define LAST_RADIO 0.9
+#define NOW_RADIO 0.1
+
+void Job::store_read_time(int node_id, double write_time) {  //读时间这里记录  也就是解码操作
+    cout<<"the node_id is "<<node_id<<"  and the write_time is "<<write_time<<endl;
+    //MySQLInterface *mysql = MySQLInterface::GetInstance();
+    MySQLInterface *mysql = new MySQLInterface();
+    mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+    if (!mysql->Open()) {
+        std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+    }
+
+
+    //select 某一个节点的信息是否已经存在如果不存在则写入，如果存在，则更新
+
+    vector<vector<string>> select_result; //这里select_result 的size是1
+    string select_one_node = "SELECT * FROM nodePerformance WHERE nodeName='"
+                             + to_string(node_id) + "'";
+    //cout << select_one_node << endl;
+    mysql->Select(select_one_node, select_result);
+    if (select_result.empty()) {   //如果对应某一个节点的信息为空 那么将这个节点信息写入， accessNumber置为1
+        cout << "the node of " << to_string(node_id) << "  is empty" << endl;
+        string create_node_info =
+                "INSERT INTO  nodePerformance(nodeName,respondeTime,accessNumber) VALUES('"
+                + to_string(node_id) + "'," + to_string(write_time)
+                + "," + to_string(1) + ")";
+        mysql->GetInsertID(create_node_info); //insert the nodeName respondeTime to the table
+    } else {
+
+
+        string string_respondeTime = select_result[0][1]; //select_result[0][1] is respindeTime in the nodePerformance
+        string string_accessTime = select_result[0][2]; //select_result[0][2] is accessTime in the nodePerformance
+        float respondeTime = atof(string_respondeTime.c_str());
+        int accessTime = atof(string_accessTime.c_str());
+        accessTime++; //每次写数据时，对应节点的访问次数加1
+        respondeTime = respondeTime * LAST_RADIO + write_time * NOW_RADIO; //每次写数据时，对应节点的访问次数加1
+
+        /*
+        string update_write_info = "UPDATE nodePerformance SET respondeTime="
+                + to_string(respondeTime) + ", accessNumber="
+                + to_string(accessTime) + " WHERE nodeName='"
+                + to_string(node_id) + "'";
+        */
+
+        /**
+         * 这里只更新响应时间，访问次数在选择节点时已经修改。
+         */
+        string update_write_info = "UPDATE nodePerformance SET respondeTime="
+                                   + to_string(respondeTime)  + " WHERE nodeName='"
+                                   + to_string(node_id) + "'";
+
+
+        //update the write time and write number
+        bool update = mysql->Query(update_write_info);
+
+    }
+    cout<<"node index       average time     access time"<<endl;
+    for (int i = 0; i < select_result.size(); i++) {
+        for (int j = 0; j < select_result[0].size(); j++)
+            cout << select_result[i][j] << " ";
+        cout << endl;
+    }
+    mysql->Close();
+    delete mysql;
+}
+
+
+
+
+
 
 void Job::upload_metadata(void) {
 	// upload metadata to each node
@@ -362,17 +413,21 @@ void Job::download_chunks_for_record_time(void)
 		cout << "node indix:  " << i << endl;
 		cout << endl;
 	}
-
-
+    struct timeval start_file;
+    struct timeval end_file;
+    //一个文件读文件所花费的时间
+    gettimeofday(&start_file,NULL);
 	for (auto nodeid : node_indices) {
-		clock_t begin_read_in_node, end_read_in_node;
-		begin_read_in_node = clock();
+		struct timeval start_read_in_node;
+        struct timeval end_read_in_node;
+		gettimeofday(&start_read_in_node,NULL);
 		vector<int> cur_chunk_indices;
 		for (auto chunk_index : chunk_indices) {
 			if (coding->nodeid(chunk_index) == nodeid) {
 				cur_chunk_indices.push_back(chunk_index);
 			}
 		}
+        //在get_chunk中有打印目录信息
 		if ((*storages)[nodeid]->get_chunks(tmpdir, filename, cur_chunk_indices)
 				== -1) {
 			stringstream s;
@@ -384,10 +439,14 @@ void Job::download_chunks_for_record_time(void)
 			print_error(s);
 			exit(-1);
 		}
-		end_read_in_node = clock();
-		clock_t read_time = end_read_in_node - begin_read_in_node;
-		store_write_time(nodeid,read_time);
+		gettimeofday(&end_read_in_node,NULL);
+		double read_time =  end_read_in_node.tv_sec-start_read_in_node.tv_sec+
+                (end_read_in_node.tv_usec-start_read_in_node.tv_usec)/1000000.0;
+		store_read_time(nodeid,read_time);
 	}
+     gettimeofday(&end_file,NULL);
+     double read_one_file_time = end_file.tv_sec-start_file.tv_sec+(end_file.tv_usec-start_file.tv_usec)/1000000.0;
+     cout<<"read one file time is  "<<read_one_file_time<<endl;
 
 }
 
@@ -430,6 +489,8 @@ void Job::repair_file(void) {
 /*  ----------------  */
 /* | Public methods | */
 /*  ----------------  */
+#define ACCESS_VARIANCE_MAX 20
+#define RESPONDE_RADIO 0.95
 FileOp *FileOp::instance(void) {
     /*
      * 这里的instance只调用一次因此可以这样使用
@@ -558,6 +619,7 @@ void FileOp::decode_file(string &filename, Coding *coding,
  * 2017/4/12
  * File:: void get_sorted_node(vector<vector<string>> node_responde_time);
  */
+/*
 void FileOp::get_sorted_node(vector<pair<string,double>>& node_responde_time)
 {
 	//MySQLInterface *mysql = MySQLInterface::GetInstance();
@@ -583,6 +645,299 @@ void FileOp::get_sorted_node(vector<pair<string,double>>& node_responde_time)
 		sort(node_responde_time.begin(),node_responde_time.end(),cmp);
 }
 
+*/
+
+
+
+void FileOp::updateAccessTime(const vector<string> nodeAndAccessTime)
+{
+    MySQLInterface *mysql = new MySQLInterface();
+    mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+    if (!mysql->Open()) {
+        std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+    }
+
+    for(int i = 0 ;i<nodeAndAccessTime.size();i++)
+    {
+        string node_id = nodeAndAccessTime[i];
+        vector<vector<string>> select_result; //这里select_result 的size是1
+        string select_one_node = "SELECT * FROM nodePerformance WHERE nodeName='"
+                                 + node_id + "'";
+        //cout << select_one_node << endl;
+        mysql->Select(select_one_node, select_result);
+        if (select_result.empty()) {   //如果对应某一个节点的信息为空 那么将这个节点信息写入， accessNumber置为1
+            cout << "the node of " << node_id << "  is empty" << endl;
+            string create_node_info =
+                    "INSERT INTO  nodePerformance(nodeName,respondeTime,accessNumber) VALUES('"
+                    + node_id + "'," + to_string(0)
+                    + "," + to_string(1) + ")";
+            mysql->GetInsertID(create_node_info); //insert the nodeName respondeTime to the table
+        } else {
+
+
+
+            string string_accessTime = select_result[0][2]; //select_result[0][2] is accessTime in the nodePerformance
+
+            int accessTime = atoi(string_accessTime.c_str());
+            accessTime++; //每次写数据时，对应节点的访问次数加1
+
+
+            string update_write_info = "UPDATE nodePerformance SET accessNumber="
+                                       + to_string(accessTime) + " WHERE nodeName='"
+                                       + node_id + "'";
+
+            //update the write time and write number
+            bool update = mysql->Query(update_write_info);
+            //cout << "update is  " << update << endl;
+        }
+    }
+    mysql->Close();
+    delete mysql;
+
+}
+
+
+
+/**
+ * 为没有响应节点请求的节点更新（降低）响应时间
+ * @param reduceRespondTime 需要更新的响应时间 pair中first为节点名称 second为需要更改的时间
+ */
+void FileOp::updateRespondTime(const vector<pair<string,double>> reduceRespondTime)
+{
+    MySQLInterface *mysql = new MySQLInterface();
+    mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+    if (!mysql->Open()) {
+        std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+    }
+    // 更新数据
+
+    string tableName = "nodePerformance";
+    string updateColumn = "respondeTime";
+    string goalRaw = "nodeName";
+    char* sqlstr_c="";
+    //"SELECT `nodeName`,`respondeTime`,`accessNumber` FROM `performance`.`nodePerformance`";
+    for(int i =0;i<reduceRespondTime.size();i++)
+    {
+        string rawValue = reduceRespondTime[i].first; //这里是id号
+        double updateValue = reduceRespondTime[i].second;//这里是修改后的响应时间
+        string updateString = "UPDATE `"+tableName+"` SET `"+updateColumn+"`="+to_string(updateValue)+" WHERE `"+
+                              goalRaw+"`='"+rawValue+"'";
+
+        cout<<updateString<<endl;
+        mysql->Update(updateString);
+    }
+    mysql->Close();
+    delete mysql;
+}
+
+
+/**
+ * 应该注意这个sqlData首先要是当前处于良好状态的节点信息，不能包含已经坏了的节点信息
+ *
+ * @param choiceNode  这是前k个节点 用这k个节点去响应请求
+ * @param sqlData   这是才数据库中读入的全部数据，包含了每个节点的respondeTime 和 accessTime
+ */
+void FileOp::reduceRespondTime(const vector<string>& choiceNode, const vector<vector<string>>& sqlData)
+{ //这里传过来的choice node应该是已经选择过的k个节点的信息 而不是n个
+
+    //这里是将响应时间降低20%
+    double REDUCE_RADIO =  0.8;
+    vector<pair<string,double>> reduce_respond_nodes;
+    //找出不需要用作响应请求的n-k个节点。
+    for(int i = 0;i<sqlData.size();i++)
+    {
+        if(find(choiceNode.begin(),choiceNode.end(),sqlData[i][0])==choiceNode.end())
+            reduce_respond_nodes.push_back(make_pair(sqlData[i][0],atof(sqlData[i][1].c_str())*REDUCE_RADIO));
+    }
+    //更新不响应请求的节点的响应时间
+    updateRespondTime(reduce_respond_nodes);
+}
+
+/**
+ *
+ * @param sqlData 从数据库中读入的信息，同样应该注意数据库读入的列应该保证它节点状态是良好的
+ * @return 返回排序好的n个节点
+ */
+vector<string> FileOp::choiceNode(const vector<vector<string>>& sqlData,Coding* coding)
+{
+
+    vector<string> choiceNodes;
+
+
+    vector<pair<string,int>> nodeAccessTime;
+    vector<pair<string,double>> nodeRespondeTime;
+
+    vector<string> allNodes;
+    vector<int> accessTimes;
+    vector<double> respondeTimes;
+
+
+    for(int i=0;i<sqlData.size();i++)
+    {
+        if(3<=sqlData[i].size())
+        {
+            string node = sqlData[i][0];
+            double respondeTime = atof(sqlData[i][1].c_str());
+            int accessTime = atoi(sqlData[i][2].c_str());
+
+            nodeRespondeTime.push_back(pair<string,double>(node,respondeTime));
+            nodeAccessTime.push_back(pair<string,int>(node,accessTime));
+
+            accessTimes.push_back(accessTime);
+            respondeTimes.push_back(respondeTime);
+            allNodes.push_back(node);
+        }
+    }
+    //这里计算访问次数的方差，避免某一个节点访问次数过大。
+    double accessTimeVarience = getVariance(accessTimes);
+    if(accessTimeVarience<ACCESS_VARIANCE_MAX)
+    { //如果方差小于某一阈值 则采用响应时间判断
+        getNodesByRespondeTime(choiceNodes,nodeRespondeTime);
+    }
+    else //否则采用访问次数
+        getNodesByAccessTime(choiceNodes,nodeAccessTime);
+
+	cout<<" the access Varience is  "<<accessTimeVarience<<endl;
+
+    int k = coding->getk();
+    vector<string> choiceK_nodes;
+    for(int i=0;i<k;i++)
+        choiceK_nodes.push_back(choiceNodes[i]);
+
+    //没有选中的节点，降低其响应时间
+    reduceRespondTime(choiceK_nodes,sqlData);
+    //对于选中的节点，对对应节点的访问次数加一
+    updateAccessTime(choiceK_nodes);
+    return choiceNodes;
+
+}
+
+
+/**
+ *
+ * @param choiceNodes 最终排序好的节点信息
+ * @param nodeAccessTime 每一个节点的访问时间
+ */
+void FileOp::getNodesByAccessTime(vector<string>& choiceNodes,vector<pair<string,int>> nodeAccessTime)
+{
+    /**
+     * 这里按照升序排序 也就是访问次数少的将响应请求
+     */
+    auto cmp =[](std::pair<string,double> const&a,std::pair<string,int> const&b)
+    {
+        return a.second!=b.second? a.second<b.second:a.first<b.first;
+    };
+
+    sort(nodeAccessTime.begin(),nodeAccessTime.end(),cmp);
+    for(int i=0;i<nodeAccessTime.size();i++)
+    {
+        choiceNodes.push_back(nodeAccessTime[i].first);
+    }
+}
+
+
+/**
+ *
+ * @param choiceNodes  排序好的节点
+ * @param nodeRespondeTime 节点的响应时间
+ */
+void FileOp::getNodesByRespondeTime(vector<string>& choiceNodes,vector<pair<string,double>> nodeRespondeTime)
+{
+    /**
+    * 这里按照升序排序 响应时间少的将响应请求
+    */
+    auto cmp =[](std::pair<string,double> const&a,std::pair<string,double> const&b)
+    {
+        return a.second!=b.second? a.second<b.second:a.first<b.first;
+    };
+
+    sort(nodeRespondeTime.begin(),nodeRespondeTime.end(),cmp);
+    for(int i=0;i<nodeRespondeTime.size();i++)
+    {
+        choiceNodes.push_back(nodeRespondeTime[i].first);
+    }
+}
+
+
+
+
+/**
+ *
+ * @param 输入一组数据
+ * @return  返回方差
+ */
+double FileOp::getVariance(vector<int> numbers)
+{//计算方差
+    int numbersSum = std::accumulate(numbers.begin(),numbers.end(),0);
+    double averageNumber = numbersSum/numbers.size();
+    double accum  = 0.0;
+    std::for_each (std::begin(numbers), std::end(numbers), [&](const double d) {
+        accum  += (d-averageNumber)*(d-averageNumber);
+    });
+
+    double variance = accum/(numbers.size()-1);//方差
+    double stdev = sqrt(variance); //标准差
+    cout<<numbersSum<<"   "<<variance<<"   " <<stdev<< endl;
+    return variance;
+}
+
+
+
+/**
+ * 获取数据
+ * @return  返回从数据库中得到的数据
+ */
+vector<vector<string>> FileOp::getData()
+{
+    MySQLInterface *mysql = new MySQLInterface();
+    mysql->SetMySQLConInfo("localhost", "root", "cai", "performance", 337);
+    if (!mysql->Open()) {
+        std::cout << mysql->ErrorNum << " : " << mysql->ErrorInfo << std::endl;
+    }
+    // 读取数据
+
+    std::vector<std::vector<std::string> > data;
+
+    std::string sqlstr =
+            "SELECT `nodeName`,`respondeTime`,`accessNumber` FROM `performance`.`nodePerformance`";
+
+    mysql->Select(sqlstr, data);
+    mysql->Close();
+    delete mysql;
+
+    // 显示数据
+    /*
+     for (unsigned int i = 0; i < data.size(); ++i) {
+
+         for (unsigned int j = 0; j < data[0].size(); ++j) {
+             cout << data[i][j] << "\t\t";
+         }
+         cout << endl;
+     }
+     */
+    return data;
+}
+
+
+/**
+ *
+ * @return  返回排序好的节点名称
+ */
+vector<string> FileOp::get_sorted_node(Coding* coding)
+{
+    vector<vector<string>> data = getData();
+    vector<string> node_responde_time = choiceNode(data,coding);
+    for(int i=0;i<node_responde_time.size();i++)
+        cout<<node_responde_time[i]<<"   ";
+    return node_responde_time;
+}
+
+
+
+
+
+
+
 /*
  * Add by CaiYi
  * 2017/4/12
@@ -593,13 +948,14 @@ void FileOp::decode_file_for_degraded_read(string &filename, Coding *coding,
 	print(stringstream() << "Decoding: " << filename << endl);
 
     //get the node_responde_time  and sort these;
-    vector<pair<string,double>>node_responde_time;
-    get_sorted_node(node_responde_time);
+    vector<string>node_responde_time;
+    //这里获取到排序好的节点
+    node_responde_time=get_sorted_node(coding);
 
-	vector<pair<string,double>>::iterator i = node_responde_time.begin();
+	vector<string>::iterator i = node_responde_time.begin();
 	while(i!=node_responde_time.end())
 	{
-		cout<<i->first<<"   "<<i->second<<"   "<<endl;
+		cout<<*i<<endl;
 		i++;
 	}
 
@@ -616,7 +972,7 @@ void FileOp::decode_file_for_degraded_read(string &filename, Coding *coding,
 		int n = coding->getn();
 		for(int i=0;i<node_responde_time.size();i++)
 		{
-			string string_nodeIndex = node_responde_time[i].first;
+			string string_nodeIndex = node_responde_time[i];
 			int nodeIndex = atoi(string_nodeIndex.c_str());
 			if(storages[nodeIndex]->check_health()==0)
 			{
@@ -660,10 +1016,7 @@ void FileOp::decode_file_for_degraded_read(string &filename, Coding *coding,
 
 	}
 
-	  for(int i=0;i<healthy_nodes.size();i++)
-	  {
-		  cout<<"the healthy_nodes is    "<<healthy_nodes[i]<<endl;
-	  }
+
 	  // download chunks from the first k healthy node, and save their chunk indices
 	  vector<int> chunk_indices;
 	  unsigned int k = (unsigned int) coding->getk();

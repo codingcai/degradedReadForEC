@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "common.h"
 #include "storage.h"
 
-
+using namespace std;
 /** Class for a storage/coding job assigned to a
  *  master storage/coding thread in FileOp. */
 class Job
@@ -74,8 +74,10 @@ class Job
    * 2017/4/11
    * 这个方法主要是记录每一个写操作的响应时间，然后更新响应时间以及写次数
    */
-  void store_write_time(int node_id, long int write_time);
+  void store_write_time(int node_id, double write_time);
 
+
+  void store_read_time(int node_id, double write_time);
 
 public:
   /** All types of jobs.  Storage jobs < DIVIDER; coding jobs > DIVIDER. */
@@ -145,7 +147,76 @@ public:
  * TODO: 这里我们是根据响应时间进行排序，当然我们可以根据不同的权值进行排序
  *
  */
-  void get_sorted_node(std::vector<std::pair<std::string,double>> &node_responde_time);
+
+
+    /**
+     *
+     * @param nodeAndAccessTime 需要更新访问次数的节点名称集合
+     */
+    void updateAccessTime(const vector<string> nodeAndAccessTime);
+
+
+    /**
+   * 为没有响应节点请求的节点更新（降低）响应时间
+   * @param reduceRespondTime 需要更新的响应时间 pair中first为节点名称 second为需要更改的时间
+   */
+   void updateRespondTime(const vector<pair<string,double>> reduceRespondTime);
+
+
+    /**
+ * 应该注意这个sqlData首先要是当前处于良好状态的节点信息，不能包含已经坏了的节点信息
+ *
+ * @param choiceNode  这是前k个节点 用这k个节点去响应请求
+ * @param sqlData   这是才数据库中读入的全部数据，包含了每个节点的respondeTime 和 accessTime
+ */
+    void reduceRespondTime(const vector<string>& choiceNode, const vector<vector<string>>& sqlData);
+
+    /**
+   *
+   * @param sqlData 从数据库中读入的信息，同样应该注意数据库读入的列应该保证它节点状态是良好的
+   * @return 返回排序好的n个节点
+   */
+    vector<string> choiceNode(const vector<vector<string>>& sqlData, Coding* coding);
+    /**
+ *
+ * @param choiceNodes 最终排序好的节点信息
+ * @param nodeAccessTime 每一个节点的访问时间
+ */
+    void getNodesByAccessTime(vector<string>& choiceNodes,vector<pair<string,int>> nodeAccessTime);
+
+    /**
+  *
+  * @param choiceNodes  排序好的节点
+  * @param nodeRespondeTime 节点的响应时间
+  */
+    void getNodesByRespondeTime(vector<string>& choiceNodes,vector<pair<string,double>> nodeRespondeTime);
+
+
+    /**
+ *
+ * @param 输入一组数据
+ * @return  返回方差
+ */
+    double getVariance(vector<int> numbers);
+
+
+    /**
+ * 获取数据
+ * @return  返回从数据库中得到的数据
+ */
+    vector<vector<string>> getData();
+
+
+/**
+ *
+ * @return  返回排序好的节点名称
+ */
+    vector<string> get_sorted_node(Coding* coding);
+
+   // void get_sorted_node(std::vector<std::pair<std::string,double>> &node_responde_time);
+
+
+
 
   /** Download and decode a file with considering the write responde time
    *  @param[in] filename name of file to download

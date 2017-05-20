@@ -102,6 +102,18 @@ bool MySQLInterface::Select(const std::string& Querystr, std::vector<std::vector
 }
 
 // 其他操作
+
+bool MySQLInterface::Update(const std::string& Updatestr)
+{
+    if (0 == mysql_query(&MysqlInstance, Updatestr.c_str()))
+    {
+        return true;
+    }
+    ErrorIntoMySQL();
+    return false;
+}
+
+
 bool MySQLInterface::Query(const std::string& Querystr)
 {
     if (0 == mysql_query(&MysqlInstance, Querystr.c_str()))
